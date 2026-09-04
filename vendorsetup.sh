@@ -14,5 +14,15 @@
 # limitations under the License.
 #
 
-source vendor/avium/build/envsetup.sh
+# Function to merge split APK parts (handles large files like MiuiCamera)
+function merge_file_parts() {
+    # Check if file parts exist before merging
+    if ls $1.* 1> /dev/null 2>&1; then
+        echo "Merging $1..."
+        cat $1.* > $1
+        rm -f $1.*
+    fi
+}
+
+# Merge the MiuiCamera APK parts
 merge_file_parts vendor/xiaomi/miuicamera-cupid/proprietary/system/priv-app/MiuiCamera/MiuiCamera.apk
