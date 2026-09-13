@@ -14,15 +14,31 @@
 # limitations under the License.
 #
 
-# Function to merge split APK parts (handles large files like MiuiCamera)
-function merge_file_parts() {
-    # Check if file parts exist before merging
-    if ls $1.* 1> /dev/null 2>&1; then
-        echo "Merging $1..."
-        cat $1.* > $1
-        rm -f $1.*
+# Reconstruct the input APK for Soong. Keep tracked parts, do not concatenate
+# backup files, and preserve the previous APK if reconstruction is interrupted.
+function merge_miuicamera_parts() (
+    local apk="$1"
+    local parts=("$apk".[0-9][0-9].part)
+    if [[ ! -f "${parts[0]}" ]]; then
+        # Older versions of this script removed the parts after merging.
+        [[ -s "$apk" ]] || {
+            echo "MiuiCamera: missing APK and split parts: $apk" >&2
+            return 1
+        }
+        return 0
     fi
-}
+    local temporary
+    temporary=$(mktemp "$apk.merge.XXXXXX") || return 1
+    trap 'rm -f "$temporary"' EXIT
+    cat "${parts[@]}" > "$temporary" || return 1
+    # Avoid invalidating the incremental build on every envsetup invocation.
+    if ! cmp -s "$temporary" "$apk"; then
+        mv -f "$temporary" "$apk" || return 1
+    fi
+)
 
-# Merge the MiuiCamera APK parts
-merge_file_parts vendor/xiaomi/miuicamera-cupid/proprietary/system/priv-app/MiuiCamera/MiuiCamera.apk
+if ! merge_miuicamera_parts vendor/xiaomi/miuicamera-cupid/proprietary/system/priv-app/MiuiCamera/MiuiCamera.apk; then
+    unset -f merge_miuicamera_parts
+    return 1 2>/dev/null || exit 1
+fi
+unset -f merge_miuicamera_parts

@@ -152,10 +152,31 @@ cc_prebuilt_library_shared {
     prefer: true,
 }
 
+// Build from the immutable prebuilt on every input/patch change. The Android
+// signing and zipalign stages run after this rule, as for any app import.
+genrule {
+    name: "MiuiCameraLogicalDisplay",
+    tools: [
+        "miuicamera-patch-apk",
+        "smali-baksmali",
+        "android-smali",
+    ],
+    srcs: [
+        "proprietary/system/priv-app/MiuiCamera/MiuiCamera.apk",
+        ":miuicamera-logical-display-patch",
+    ],
+    out: ["MiuiCamera.apk"],
+    cmd: "$(location miuicamera-patch-apk) " +
+        "--input $(location proprietary/system/priv-app/MiuiCamera/MiuiCamera.apk) " +
+        "--output $(out) --work-dir $(genDir) " +
+        "--patch $(location :miuicamera-logical-display-patch) " +
+        "--baksmali $(location smali-baksmali) --smali $(location android-smali)",
+}
+
 android_app_import {
     name: "MiuiCamera",
     owner: "xiaomi",
-    apk: "proprietary/system/priv-app/MiuiCamera/MiuiCamera.apk",
+    apk: ":MiuiCameraLogicalDisplay",
     overrides: [
         "Aperture",
     ],
